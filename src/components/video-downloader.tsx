@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { Loader2, Link as LinkIcon } from "lucide-react";
+import { useForm, type SubmitHandler } from "react-hook-form";
+import { Loader2, Link as LinkIcon, AlertCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,53 +21,58 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 
 import { fetchVideoMetadataAction } from "@/app/actions";
-import type { DetectVideoSourceAndQualityOutput } from "@/ai/flows/detect-video-source-and-quality";
+import {
+  DownloadVideoInputSchema,
+  type DownloadVideoOutput,
+  type DownloadVideoInput,
+} from "@/ai/flows/download-video-flow";
 import { VideoInfoCard } from "./video-info-card";
 import { Skeleton } from "./ui/skeleton";
 
-const FormSchema = z.object({
-  videoUrl: z.string().url({ message: "Please enter a valid URL." }),
-});
-
 export function VideoDownloader() {
-  const [videoInfo, setVideoInfo] =
-    useState<DetectVideoSourceAndQualityOutput | null>(null);
+  const [videoInfo, setVideoInfo] = useState<DownloadVideoOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const form = useForm<z.infer<typeof FormSchema>>({
-    resolver: zodResolver(FormSchema),
+  const form = useForm<DownloadVideoInput>({
+    resolver: zodResolver(DownloadVideoInputSchema),
     defaultValues: {
-      videoUrl: "",
+      url: "",
     },
   });
 
-  async function onSubmit(data: z.infer<typeof FormSchema>) {
+  const onSubmit: SubmitHandler<DownloadVideoInput> = async (data) => {
     setIsLoading(true);
     setVideoInfo(null);
+    setError(null);
     try {
       const result = await fetchVideoMetadataAction(data);
       if (result.error) {
         throw new Error(result.error);
       }
-      setVideoInfo(result.data);
-    } catch (error) {
-      console.error(error);
+      if (result.data) {
+        setVideoInfo(result.data);
+      } else {
+        throw new Error("Received no data from the server.");
+      }
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "An unknown error occurred.";
+      setError(errorMessage);
       toast({
         variant: "destructive",
-        title: "Error",
-        description:
-          error instanceof Error
-            ? error.message
-            : "An unknown error occurred.",
+        title: "Error Fetching Video",
+        description: errorMessage,
       });
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="w-full max-w-2xl">
@@ -87,7 +91,7 @@ export function VideoDownloader() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
-                name="videoUrl"
+                name="url"
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
@@ -105,7 +109,7 @@ export function VideoDownloader() {
                           {isLoading ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Fetching
+                              Fetching...
                             </>
                           ) : (
                             "Fetch Video"
@@ -121,31 +125,45 @@ export function VideoDownloader() {
           </Form>
         </CardContent>
       </Card>
+      
+      <div className="mt-6">
+        {isLoading && (
+          <Card className="border-none animate-pulse">
+            <CardHeader>
+              <Skeleton className="h-7 w-3/5 rounded-md" />
+              <Skeleton className="h-4 w-2/5 rounded-md" />
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-start gap-4">
+                 <Skeleton className="h-[90px] w-[120px] rounded-lg" />
+                 <div className="flex-1 space-y-2">
+                    <Skeleton className="h-6 w-full rounded-md" />
+                    <Skeleton className="h-4 w-3/4 rounded-md" />
+                 </div>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Skeleton className="h-12 w-full rounded-md" />
+            </CardFooter>
+          </Card>
+        )}
 
-      {isLoading && (
-        <Card className="mt-6 border-none">
-          <CardHeader>
-            <Skeleton className="h-7 w-2/5 rounded-md" />
-            <Skeleton className="h-4 w-1/3 rounded-md" />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Skeleton className="h-4 w-16 rounded-md" />
-            <Skeleton className="h-10 w-full rounded-md" />
-          </CardContent>
-          <CardFooter>
-            <Skeleton className="h-12 w-full rounded-md" />
-          </CardFooter>
-        </Card>
-      )}
+        {error && !isLoading && (
+           <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-      {videoInfo && !isLoading && (
-        <div className="mt-6">
+        {videoInfo && !isLoading && (
           <VideoInfoCard
+            key={videoInfo.thumbnail} // Use a key to force re-mount on new video
             videoInfo={videoInfo}
-            videoUrl={form.getValues("videoUrl")}
+            videoUrl={form.getValues("url")}
           />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

@@ -1,27 +1,38 @@
 "use server";
 
 import {
-  detectVideoSourceAndQuality,
-  type DetectVideoSourceAndQualityInput,
-  type DetectVideoSourceAndQualityOutput,
-} from "@/ai/flows/detect-video-source-and-quality";
+  downloadVideo,
+  type DownloadVideoInput,
+  type DownloadVideoOutput,
+} from "@/ai/flows/download-video-flow";
 
 type ActionResult = {
-  data?: DetectVideoSourceAndQualityOutput;
+  data?: DownloadVideoOutput;
   error?: string;
 };
 
 export async function fetchVideoMetadataAction(
-  input: DetectVideoSourceAndQualityInput
+  input: DownloadVideoInput
 ): Promise<ActionResult> {
   try {
-    const data = await detectVideoSourceAndQuality(input);
+    const data = await downloadVideo(input);
+    // Ensure there's at least one format before returning success
+    if (!data.formats || data.formats.length === 0) {
+       return { error: "No downloadable formats were found for this video." };
+    }
     return { data };
   } catch (error) {
-    console.error("Error detecting video source:", error);
+    console.error("Error in fetchVideoMetadataAction:", error);
     if (error instanceof Error) {
+      // Provide more user-friendly error messages
+      if (error.message.includes('RAPIDAPI_KEY')) {
+         return { error: "The API key is not configured on the server." };
+      }
+      if (error.message.includes('429')) {
+         return { error: "The API rate limit has been exceeded. Please try again later." };
+      }
       return {
-        error: "Could not analyze the video URL. Please check the URL and try again.",
+        error: error.message,
       };
     }
     return {
