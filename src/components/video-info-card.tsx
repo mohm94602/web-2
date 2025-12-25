@@ -20,7 +20,7 @@ import {
 import { Download, Youtube, Video, Film, Music, AlertTriangle } from "lucide-react";
 import { Label } from "./ui/label";
 import Image from "next/image";
-import { type DownloadVideoOutput } from "@/ai/flows/download-video-flow";
+import { type DownloadVideoOutput } from "@/ai/flows/schemas";
 
 type VideoInfoCardProps = {
   videoInfo: DownloadVideoOutput;

@@ -29,7 +29,7 @@ import {
   DownloadVideoInputSchema,
   type DownloadVideoOutput,
   type DownloadVideoInput,
-} from "@/ai/flows/download-video-flow";
+} from "@/ai/flows/schemas";
 import { VideoInfoCard } from "./video-info-card";
 import { Skeleton } from "./ui/skeleton";
 

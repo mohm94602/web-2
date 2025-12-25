@@ -1,10 +1,7 @@
 "use server";
 
-import {
-  downloadVideo,
-  type DownloadVideoInput,
-  type DownloadVideoOutput,
-} from "@/ai/flows/download-video-flow";
+import { downloadVideo } from "@/ai/flows/download-video-flow";
+import { type DownloadVideoInput, type DownloadVideoOutput } from "@/ai/flows/schemas";
 
 type ActionResult = {
   data?: DownloadVideoOutput;
